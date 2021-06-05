@@ -1,0 +1,10 @@
+version: "2.3"
+services:
+  webuild_core_db:
+    image: postgres:11.5
+    container_name: webuild_core_db
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=webuild_core_local

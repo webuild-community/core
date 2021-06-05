@@ -1,0 +1,39 @@
+name: Go CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - cicd
+      - feat/*
+      - fix/*
+      - hotfix/*
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Service containers to run with `container-job`
+    services:
+      # Label used to access the service container
+      postgres:
+        # Docker Hub image
+        image: postgres:11.5
+        env:
+          POSGRES_DB: webuild_core_test
+          POSGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup go
+    - uses: actions/setup-go@v2
+      with:
+        go-version: '^1.16' # The Go version to download (if necessary) and use.
+    - name: Run Tests
+      run: go test ./...
