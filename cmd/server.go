@@ -65,15 +65,15 @@ func main() {
 
 			for e := q.Consume(); e != nil; e = next {
 				if u, ok := e.(*model.User); ok {
-					_, isLevelUp, err := userSvc.Update(u.ID, map[string]interface{}{
+					_, _, err := userSvc.Update(u.ID, map[string]interface{}{
 						"exp": u.Exp,
 					})
 					if err != nil {
 						logger.Error("cannot update user exp", zap.Error(err), zap.String("user_id", u.ID))
 					}
-					if isLevelUp && u.SlackChannel != "" {
-						slackClient.PostMessage(u.SlackChannel, slack.MsgOptionText(fmt.Sprintf("User %v is level up!", u.ID), false))
-					}
+					// if isLevelUp && u.SlackChannel != "" {
+					// 	slackClient.PostMessage(u.SlackChannel, slack.MsgOptionText(fmt.Sprintf("User %v is level up!", u.ID), false))
+					// }
 				}
 				next = q.Consume()
 				time.Sleep(100 * time.Millisecond)
