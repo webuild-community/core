@@ -8,6 +8,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 	"github.com/robfig/cron/v3"
 	"github.com/slack-go/slack"
 	"github.com/webuild-community/core/handler"
@@ -55,7 +56,7 @@ func main() {
 	userSvc := user.NewPGService(db)
 
 	c := cron.New()
-	c.AddFunc("@every 0h0m30s", func() {
+	c.AddFunc("@every 0h5m00s", func() {
 		// this will avoid multiple cronjobs may read same data at sometime
 		if !q.GetIsConsuming() {
 			q.SetIsConsuming(true)
@@ -85,6 +86,11 @@ func main() {
 	c.Start()
 
 	e := echo.New()
+
+	// Middleware
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
 	e.GET("/healthz", func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
