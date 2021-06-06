@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/joho/godotenv v1.3.0
-	github.com/k0kubun/pp v3.0.1+incompatible
+	github.com/k0kubun/pp v3.0.1+incompatible // indirect
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/echo/v4 v4.3.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
