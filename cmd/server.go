@@ -56,7 +56,7 @@ func main() {
 	userSvc := user.NewPGService(db)
 
 	c := cron.New()
-	c.AddFunc("@every 0h5m00s", func() {
+	c.AddFunc("@every 0h0m05s", func() {
 		// this will avoid multiple cronjobs may read same data at sometime
 		if !q.GetIsConsuming() {
 			q.SetIsConsuming(true)
@@ -65,8 +65,20 @@ func main() {
 
 			for e := q.Consume(); e != nil; e = next {
 				if u, ok := e.(*model.User); ok {
-					_, _, err := userSvc.Update(u.ID, map[string]interface{}{
-						"exp": u.Exp,
+					sUser, err := slackClient.GetUserInfo(u.ID)
+					if err != nil {
+						logger.Error("cannot get slack user info", zap.Error(err), zap.String("user_id", u.ID))
+						continue
+					}
+					_, _, err = userSvc.Update(u.ID, map[string]interface{}{
+						"exp":            u.Exp,
+						"first_name":     sUser.Profile.FirstName,
+						"last_name":      sUser.Profile.LastName,
+						"real_name":      sUser.Profile.RealName,
+						"display_name":   sUser.Profile.DisplayName,
+						"tz":             sUser.TZ,
+						"image_original": sUser.Profile.ImageOriginal,
+						"slack_email":    sUser.Profile.Email,
 					})
 					if err != nil {
 						logger.Error("cannot update user exp", zap.Error(err), zap.String("user_id", u.ID))
