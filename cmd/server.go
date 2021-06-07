@@ -56,7 +56,7 @@ func main() {
 	userSvc := user.NewPGService(db)
 
 	c := cron.New()
-	c.AddFunc("@every 0h0m05s", func() {
+	c.AddFunc("@every 0h5m00s", func() {
 		// this will avoid multiple cronjobs may read same data at sometime
 		if !q.GetIsConsuming() {
 			q.SetIsConsuming(true)
