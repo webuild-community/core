@@ -46,7 +46,7 @@ func (h *CommandHandler) commands(c echo.Context) error {
 		return c.NoContent(http.StatusNotFound)
 	}
 	if !exist {
-		h.logger.Error("User doest not exist", zap.Error(err), zap.String("user_id", s.UserID))
+		h.logger.Error("User does not exist", zap.Error(err), zap.String("user_id", s.UserID))
 		return c.NoContent(http.StatusNotFound)
 	}
 
