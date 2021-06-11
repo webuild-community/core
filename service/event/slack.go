@@ -59,8 +59,8 @@ func (s *slackSvc) Profile(channelID, userID string) error {
 		return nil
 	}
 	payload := fmt.Sprintf("Exp: `%d`, level: %d", user.Exp, user.Level)
-	s.client.PostMessage(channelID, slack.MsgOptionText(payload, false))
-	return nil
+	_, _, err = s.client.PostMessage(channelID, slack.MsgOptionText(payload, false))
+	return err
 }
 
 func (s *slackSvc) Register(userID string) error {
