@@ -14,24 +14,19 @@ import (
 )
 
 type slackSvc struct {
-	githubClientID string
-	logger         *zap.Logger
-	db             *gorm.DB
-	client         *slack.Client
+	logger  *zap.Logger
+	db      *gorm.DB
+	client  *slack.Client
+	userSvc user.Service
 }
 
 // NewSlackService --
-func NewSlackService(logger *zap.Logger, db *gorm.DB, client *slack.Client) Service {
-	githubClientID := os.Getenv("GITHUB_CLIENT_ID")
-	if len(githubClientID) == 0 {
-		logger.Fatal("GITHUB_CLIENT_ID is not set")
-	}
-
+func NewSlackService(logger *zap.Logger, db *gorm.DB, client *slack.Client, userSvc user.Service) Service {
 	return &slackSvc{
-		githubClientID: githubClientID,
-		logger:         logger,
-		db:             db,
-		client:         client,
+		logger:  logger,
+		db:      db,
+		client:  client,
+		userSvc: userSvc,
 	}
 }
 
@@ -53,8 +48,18 @@ func (s *slackSvc) Verify(header http.Header, body []byte) (interface{}, error) 
 	return slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
 }
 
-func (s *slackSvc) Profile() error {
-	s.logger.Info("handling profile")
+func (s *slackSvc) Profile(channelID, userID string) error {
+	user, exist, err := s.userSvc.Find(userID)
+	if err != nil {
+		s.client.PostMessage(channelID, slack.MsgOptionText("Please try again later", false))
+		return err
+	}
+	if !exist {
+		s.client.PostMessage(channelID, slack.MsgOptionText("Please type `$register` command first", false))
+		return nil
+	}
+	payload := fmt.Sprintf("Exp: `%d`, level: %d", user.Exp, user.Level)
+	s.client.PostMessage(channelID, slack.MsgOptionText(payload, false))
 	return nil
 }
 

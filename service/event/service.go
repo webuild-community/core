@@ -6,7 +6,7 @@ import (
 
 type Service interface {
 	Verify(header http.Header, body []byte) (interface{}, error)
-	Profile() error
+	Profile(channelID, userID string) error
 	Register(userID string) error
 	Top() error
 	Drop() error

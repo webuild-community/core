@@ -40,9 +40,13 @@ func (h *CommandHandler) commands(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	user, err := h.userSvc.Find(s.UserID)
+	user, exist, err := h.userSvc.Find(s.UserID)
 	if err != nil {
 		h.logger.Error("cannot find user", zap.Error(err), zap.String("user_id", s.UserID))
+		return c.NoContent(http.StatusNotFound)
+	}
+	if !exist {
+		h.logger.Error("User doest not exist", zap.Error(err), zap.String("user_id", s.UserID))
 		return c.NoContent(http.StatusNotFound)
 	}
 

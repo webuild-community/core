@@ -57,8 +57,8 @@ func main() {
 
 	q := queue.NewQueueService()
 	commandSvc := command.NewSlackService(logger, db, slackClient)
-	eventSvc := event.NewSlackService(logger, db, slackClient)
 	userSvc := user.NewPGService(db)
+	eventSvc := event.NewSlackService(logger, db, slackClient, userSvc)
 
 	c := cron.New()
 	c.AddFunc("@every 0h5m00s", func() {
