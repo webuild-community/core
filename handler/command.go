@@ -9,6 +9,7 @@ import (
 	"github.com/webuild-community/core/service/queue"
 	"github.com/webuild-community/core/service/user"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type CommandHandler struct {
@@ -40,13 +41,13 @@ func (h *CommandHandler) commands(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	user, exist, err := h.userSvc.Find(s.UserID)
+	user, err := h.userSvc.Find(s.UserID)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			h.logger.Error("User does not exist", zap.Error(err), zap.String("user_id", s.UserID))
+			return c.NoContent(http.StatusNotFound)
+		}
 		h.logger.Error("cannot find user", zap.Error(err), zap.String("user_id", s.UserID))
-		return c.NoContent(http.StatusNotFound)
-	}
-	if !exist {
-		h.logger.Error("User does not exist", zap.Error(err), zap.String("user_id", s.UserID))
 		return c.NoContent(http.StatusNotFound)
 	}
 

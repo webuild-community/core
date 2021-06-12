@@ -49,14 +49,14 @@ func (s *slackSvc) Verify(header http.Header, body []byte) (interface{}, error) 
 }
 
 func (s *slackSvc) Profile(channelID, userID string) error {
-	user, exist, err := s.userSvc.Find(userID)
+	user, err := s.userSvc.Find(userID)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			s.client.PostMessage(channelID, slack.MsgOptionText("Please type `$register` command first", false))
+			return nil
+		}
 		s.client.PostMessage(channelID, slack.MsgOptionText("Please try again later", false))
 		return err
-	}
-	if !exist {
-		s.client.PostMessage(channelID, slack.MsgOptionText("Please type `$register` command first", false))
-		return nil
 	}
 	payload := fmt.Sprintf("Exp: `%d`, level: %d", user.Exp, user.Level)
 	_, _, err = s.client.PostMessage(channelID, slack.MsgOptionText(payload, false))

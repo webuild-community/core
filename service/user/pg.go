@@ -14,13 +14,9 @@ func NewPGService(db *gorm.DB) Service {
 	return &pg{db: db}
 }
 
-func (s *pg) Find(id string) (model.User, bool, error) {
+func (s *pg) Find(id string) (model.User, error) {
 	var user model.User
-	err := s.db.First(&user, "id = ?", id).Error
-	if err == gorm.ErrRecordNotFound {
-		return user, false, nil
-	}
-	return user, true, err
+	return user, s.db.First(&user, "id = ?", id).Error
 }
 
 func (s *pg) Update(id string, changes map[string]interface{}) (model.User, bool, error) {
