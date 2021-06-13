@@ -16,24 +16,24 @@ import (
 )
 
 type slackSvc struct {
-	ClientID string
-	logger   *zap.Logger
-	db       *gorm.DB
-	client   *slack.Client
+	githubClientID string
+	logger         *zap.Logger
+	db             *gorm.DB
+	client         *slack.Client
 }
 
 // NewSlackService --
 func NewSlackService(logger *zap.Logger, db *gorm.DB, client *slack.Client) Service {
-	clientID := os.Getenv("GITHUB_CLIENT_ID")
-	if len(clientID) == 0 {
+	githubClientID := os.Getenv("GITHUB_CLIENT_ID")
+	if len(githubClientID) == 0 {
 		logger.Fatal("GITHUB_CLIENT_ID is not set")
 	}
 
 	return &slackSvc{
-		ClientID: clientID,
-		logger:   logger,
-		db:       db,
-		client:   client,
+		githubClientID: githubClientID,
+		logger:         logger,
+		db:             db,
+		client:         client,
 	}
 }
 
@@ -92,7 +92,7 @@ func (s *slackSvc) Register(userID, channel string) error {
 	}
 
 	state := uuid.NewString()
-	link := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s&scope=user", s.ClientID, state)
+	link := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s&scope=user", s.githubClientID, state)
 	text := fmt.Sprintf("*Github register*\nWelcome to WeXu, please register your account\n *<%s|Register>*", link)
 	blockText := slack.NewTextBlockObject("mrkdwn", text, false, true)
 	accessory := slack.NewImageBlockElement("https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png", "github thumbnail")

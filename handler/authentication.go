@@ -17,8 +17,8 @@ import (
 )
 
 type AuthorizeHandler struct {
-	ClientID     string
-	ClientSecret string
+	clientID     string
+	clientSecret string
 	logger       *zap.Logger
 	db           *gorm.DB
 	slack        *slack.Client
@@ -40,8 +40,8 @@ func NewAuthorizeHandler(
 	}
 
 	handler := &AuthorizeHandler{
-		ClientID:     os.Getenv("GITHUB_CLIENT_ID"),
-		ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
+		clientID:     os.Getenv("GITHUB_CLIENT_ID"),
+		clientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
 		logger:       logger,
 		db:           db,
 		slack:        slack,
@@ -125,8 +125,8 @@ func (handler *AuthorizeHandler) handleGithubCallback(ctx echo.Context) error {
 
 	client := http.Client{}
 	body, _ := json.Marshal(&GetAccessTokenReq{
-		ClientID:     handler.ClientID,
-		ClientSecret: handler.ClientSecret,
+		ClientID:     handler.clientID,
+		ClientSecret: handler.clientSecret,
 		Code:         code,
 		State:        state,
 	})
