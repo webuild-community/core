@@ -3,12 +3,15 @@ package model
 import "time"
 
 type User struct {
-	ID             string  `gorm:"size:20;primarykey" json:"user_id"`
-	IsAdmin        bool    `gorm:"default:false" json:"is_admin"`
-	Exp            int64   `gorm:"default:0" json:"exp"`
-	Level          uint    `gorm:"default:1" json:"level"`
-	Balance        float64 `gorm:"default:0" json:"balance"`
-	GithubUsername string  `json:"github_username"`
+	ID      string  `gorm:"size:20;primarykey" json:"user_id"`
+	IsAdmin bool    `gorm:"default:false" json:"is_admin"`
+	Exp     int64   `gorm:"default:0" json:"exp"`
+	Level   uint    `gorm:"default:1" json:"level"`
+	Balance float64 `gorm:"default:0" json:"balance"`
+
+	// Github info
+	GithubUsername string `json:"github_username"`
+	GithubBio      string `json:"github_bio"`
 
 	// slack info
 	FirstName     string `json:"first_name"`
@@ -23,7 +26,10 @@ type User struct {
 	Transactions  []Transaction `json:"transactions"`
 
 	// only be used for temporary storing data
-	SlackChannel string `gorm:"-" json:"slack_channel"`
+	SlackChannel string `json:"slack_channel"`
+
+	AuthenticationID uint           `json:"-"`
+	Authentication   Authentication `json:"-" gorm:"foreignKey:AuthenticationID"`
 
 	CreatedAt time.Time  `gorm:"default:now()" json:"created_at"`
 	UpdatedAt time.Time  `gorm:"default:now()" json:"updated_at"`
