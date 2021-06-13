@@ -48,7 +48,10 @@ Slack Bot: We need a slack bot to subscribe events / run commands on channels. Y
 	- reaction_removed
 
 5. `Install your app` to your Slack workspace in Basic Information
-6. Gather `SLACK_TOKEN`, `SLACK_SIGNING_SECRET`, `SLACK_VERIFICATION_TOKEN` in Basic Information and update your `.env`
+6. Create your Github Oauth Application [here](https://github.com/settings/apps/new)
+7. Config Github App callback URL to `https://<ngrok_public_URL>/callback/github/auth`
+8. Gather `SLACK_TOKEN`, `SLACK_SIGNING_SECRET`, `SLACK_VERIFICATION_TOKEN`, `GITHUB_CLIENT_ID`,
+ and `GITHUB_CLIENT_SECRET` in Basic Information and update your `.env`
 
 ### Fixtures
 
