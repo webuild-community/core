@@ -6,5 +6,6 @@ services:
     ports:
       - 5432:5432
     environment:
+      - POSTGRES_USER=webuild
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=webuild_core_local
