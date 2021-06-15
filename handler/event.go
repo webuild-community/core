@@ -85,7 +85,7 @@ func (h *EventHandler) events(c echo.Context) error {
 				return nil
 
 			case "$register":
-				if err := h.eventSvc.Register(); err != nil {
+				if err := h.eventSvc.Register(ev.User); err != nil {
 					h.logger.Error("cannot process $register event", zap.Error(err))
 				}
 				return nil

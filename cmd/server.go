@@ -35,11 +35,10 @@ func main() {
 		logger.Panic("missing slack token")
 	}
 
-	slackClient := slack.New(os.Getenv("SLACK_TOKEN"))
-
+	slackClient := slack.New(os.Getenv("SLACK_TOKEN"), slack.OptionDebug(true))
 	db, err := gorm.Open(postgres.New(postgres.Config{
-		DSN: fmt.Sprintf("user=%v password=%v dbname=%v host=%v port=5432 sslmode=disable",
-			os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"), os.Getenv("DB_HOST")),
+		DSN: fmt.Sprintf("user=%v password=%v dbname=%v host=%v port=%v sslmode=disable",
+			os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"), os.Getenv("DB_HOST"), os.Getenv("DB_PORT")),
 		PreferSimpleProtocol: true, // disables implicit prepared statement usage
 	}), &gorm.Config{
 		Logger: glog.Default.LogMode(glog.Info),
@@ -47,8 +46,14 @@ func main() {
 	if err != nil {
 		logger.Panic("cannot connect to db", zap.Error(err))
 	}
-	db.AutoMigrate(&model.User{}, &model.Item{})
-	db.AutoMigrate(&model.Transaction{})
+
+	if err := db.AutoMigrate(
+		&model.User{},
+		&model.Item{},
+		&model.Transaction{},
+	); err != nil {
+		logger.Panic("cannot migrate db", zap.Error(err))
+	}
 
 	q := queue.NewQueueService()
 	commandSvc := command.NewSlackService(logger, db, slackClient)
@@ -109,6 +114,7 @@ func main() {
 
 	handler.NewEventHandler(e, logger, q, eventSvc, userSvc)
 	handler.NewCommandHandler(e, logger, q, commandSvc, userSvc)
+	handler.NewAuthorizeHandler(e, logger, db, slackClient)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }
