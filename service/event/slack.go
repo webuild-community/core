@@ -67,9 +67,18 @@ func (s *slackSvc) Register(userID string) error {
 		return err
 	}
 
-	user := model.User{}
-	if err := s.db.Where(`"user"."id" = ?`, userID).
-		Find(&user).Error; err != nil && err != gorm.ErrRecordNotFound {
+	user := model.User{
+		ID:            userID,
+		FirstName:     slackProfile.FirstName,
+		LastName:      slackProfile.LastName,
+		RealName:      slackProfile.RealName,
+		DisplayName:   slackProfile.DisplayName,
+		ImageOriginal: slackProfile.Image48,
+		SlackEmail:    slackProfile.Email,
+	}
+	if err := s.db.
+		Where(`"user"."id" = ?`, userID).
+		FirstOrCreate(&user).Error; err != nil && err != gorm.ErrRecordNotFound {
 		s.logger.Error("failed to get user from db", zap.Error(err))
 		return err
 	}
@@ -97,25 +106,12 @@ func (s *slackSvc) Register(userID string) error {
 	}
 
 	link := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s&scope=user", s.githubClientID, userID)
-	text := fmt.Sprintf("*Github register*\nWelcome to WeXu, please register your account\n *<%s|Register WeXu account with Gitbub>*", link)
+	text := fmt.Sprintf("*Github register*\nWelcome to WeXu, please register your account\n *<%s|Register WeXu account with Github>*", link)
 	blockText := slack.NewTextBlockObject("mrkdwn", text, false, true)
 	section := slack.NewSectionBlock(blockText, nil, nil)
 
 	if _, _, _, err := s.client.SendMessage(channel.ID, slack.MsgOptionBlocks(section)); err != nil {
 		s.logger.Error("send message failed", zap.Error(err))
-		return err
-	}
-
-	if err := s.db.Create(&model.User{
-		ID:            userID,
-		FirstName:     slackProfile.FirstName,
-		LastName:      slackProfile.LastName,
-		RealName:      slackProfile.RealName,
-		DisplayName:   slackProfile.DisplayName,
-		ImageOriginal: slackProfile.Image48,
-		SlackEmail:    slackProfile.Email,
-	}).Error; err != nil {
-		s.logger.Error("create user failed", zap.Error(err))
 		return err
 	}
 
