@@ -26,10 +26,7 @@ type User struct {
 	Transactions  []Transaction `json:"transactions"`
 
 	// only be used for temporary storing data
-	SlackChannel string `json:"slack_channel"`
-
-	AuthenticationID uint           `json:"-"`
-	Authentication   Authentication `json:"-" gorm:"foreignKey:AuthenticationID"`
+	SlackChannel string `gorm:"-" json:"slack_channel"`
 
 	CreatedAt time.Time  `gorm:"default:now()" json:"created_at"`
 	UpdatedAt time.Time  `gorm:"default:now()" json:"updated_at"`

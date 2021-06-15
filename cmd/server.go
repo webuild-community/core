@@ -48,7 +48,6 @@ func main() {
 	}
 
 	if err := db.AutoMigrate(
-		&model.Authentication{},
 		&model.User{},
 		&model.Item{},
 		&model.Transaction{},

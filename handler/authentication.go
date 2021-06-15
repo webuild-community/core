@@ -29,7 +29,7 @@ func NewAuthorizeHandler(
 	logger *zap.Logger,
 	db *gorm.DB,
 	slack *slack.Client,
-) *AuthorizeHandler {
+) {
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
 	if len(clientID) == 0 {
 		logger.Fatal("GITHUB_CLIENT_ID is not set")
@@ -48,8 +48,6 @@ func NewAuthorizeHandler(
 	}
 
 	e.GET("/callback/github/auth", handler.handleGithubCallback)
-
-	return handler
 }
 
 type (
@@ -106,27 +104,26 @@ type (
 	}
 )
 
-func (handler *AuthorizeHandler) handleGithubCallback(ctx echo.Context) error {
+func (h *AuthorizeHandler) handleGithubCallback(ctx echo.Context) error {
 	code := ctx.QueryParam("code")
 	state := ctx.QueryParam("state")
 
 	user := model.User{}
-	if err := handler.db.
-		Joins(`join authentication on "authentication"."id" = "user"."authentication_id"`).
-		Where(`"authentication"."state" = ?`, state).
-		Find(&user).Preload("Authentication").Error; err != nil {
-		handler.logger.Error("get user failed", zap.Error(err))
+	if err := h.db.
+		Where(&model.User{ID: state}).
+		Find(&user).Error; err != nil {
+		h.logger.Error("get user failed", zap.Error(err))
 		return err
 	}
 
-	if user.Authentication.Status == model.AuthenticationSuccessful {
-		return handler.sendSlackRegiterSuccessMsg(&user)
+	if len(user.GithubUsername) > 0 {
+		return h.sendSlackRegiterSuccessMsg(&user)
 	}
 
 	client := http.Client{}
 	body, _ := json.Marshal(&GetAccessTokenReq{
-		ClientID:     handler.clientID,
-		ClientSecret: handler.clientSecret,
+		ClientID:     h.clientID,
+		ClientSecret: h.clientSecret,
 		Code:         code,
 		State:        state,
 	})
@@ -136,13 +133,13 @@ func (handler *AuthorizeHandler) handleGithubCallback(ctx echo.Context) error {
 		bytes.NewReader(body),
 	)
 	if err != nil {
-		handler.logger.Error("get user access token failed", zap.Error(err))
+		h.logger.Error("get user access token failed", zap.Error(err))
 		return err
 	}
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		handler.logger.Error("get data from server response failed", zap.Error(err))
+		h.logger.Error("get data from server response failed", zap.Error(err))
 		return err
 	}
 	defer resp.Body.Close()
@@ -152,7 +149,7 @@ func (handler *AuthorizeHandler) handleGithubCallback(ctx echo.Context) error {
 
 	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
 	if err != nil {
-		handler.logger.Error("create request failed", zap.Error(err))
+		h.logger.Error("create request failed", zap.Error(err))
 		return err
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", accessToken))
@@ -161,62 +158,56 @@ func (handler *AuthorizeHandler) handleGithubCallback(ctx echo.Context) error {
 
 	resp, err = client.Do(req)
 	if err != nil {
-		handler.logger.Error("get user access token failed", zap.Error(err))
+		h.logger.Error("get user access token failed", zap.Error(err))
 		return err
 	}
 
 	respBody, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		handler.logger.Error("get data from server response failed", zap.Error(err))
+		h.logger.Error("get data from server response failed", zap.Error(err))
 		return err
 	}
 	defer resp.Body.Close()
 
 	githubUser := GithubUser{}
 	if err := json.Unmarshal(respBody, &githubUser); err != nil {
-		handler.logger.Error("parse data from github response failed", zap.Error(err))
+		h.logger.Error("parse data from github response failed", zap.Error(err))
 		return err
 	}
 
-	if err := handler.db.Transaction(func(tx *gorm.DB) error {
-		user.GithubUsername = githubUser.Login
-		user.GithubBio = githubUser.Bio
-		if err := handler.db.
-			Model(&model.User{}).
-			Where(&model.User{ID: user.ID}).
-			Updates(&user).Error; err != nil {
-			handler.logger.Error("update user failed", zap.Error(err))
-			return err
-		}
-
-		user.Authentication.Status = model.AuthenticationSuccessful
-		if err := handler.db.
-			Model(&model.Authentication{}).
-			Where("id = ?", user.AuthenticationID).
-			Updates(&user.Authentication).Error; err != nil {
-			handler.logger.Error("update user authentication failed", zap.Error(err))
-			return err
-		}
-
-		return nil
-	}); err != nil {
+	user.GithubUsername = githubUser.Login
+	user.GithubBio = githubUser.Bio
+	if err := h.db.
+		Model(&model.User{}).
+		Where(&model.User{ID: user.ID}).
+		Updates(&user).Error; err != nil {
+		h.logger.Error("update user failed", zap.Error(err))
 		return err
 	}
 
-	return handler.sendSlackRegiterSuccessMsg(&user)
+	return h.sendSlackRegiterSuccessMsg(&user)
 }
 
-func (handler *AuthorizeHandler) sendSlackRegiterSuccessMsg(user *model.User) error {
+func (h *AuthorizeHandler) sendSlackRegiterSuccessMsg(user *model.User) error {
 	blockText := slack.NewTextBlockObject(
 		"mrkdwn",
 		"*Github register*\nWelcome to WeXu, your account has been registered",
 		false, false)
 	section := slack.NewSectionBlock(blockText, nil, nil)
-	if _, _, _, err := handler.slack.SendMessage(
-		user.SlackChannel,
+
+	channel, _, _, err := h.slack.OpenConversation(&slack.OpenConversationParameters{
+		Users:    []string{user.ID},
+		ReturnIM: true,
+	})
+	if err != nil {
+		h.logger.Error("open direct message failed", zap.Error(err))
+		return err
+	}
+	if _, _, _, err := h.slack.SendMessage(
+		channel.ID,
 		slack.MsgOptionBlocks(section),
 	); err != nil {
-		handler.logger.Error("send message failed", zap.Error(err))
+		h.logger.Error("send message failed", zap.Error(err))
 		return err
 	}
 
