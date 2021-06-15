@@ -2,7 +2,10 @@ package event
 
 import (
 	"encoding/json"
+<<<<<<< HEAD
 	"errors"
+=======
+>>>>>>> 6b28f21 (feat: add Github register service (#12))
 	"fmt"
 	"net/http"
 	"os"
@@ -16,24 +19,43 @@ import (
 )
 
 type slackSvc struct {
+<<<<<<< HEAD
 	ClientID string
 	logger   *zap.Logger
 	db       *gorm.DB
 	client   *slack.Client
+=======
+	githubClientID string
+	logger         *zap.Logger
+	db             *gorm.DB
+	client         *slack.Client
+>>>>>>> 6b28f21 (feat: add Github register service (#12))
 }
 
 // NewSlackService --
 func NewSlackService(logger *zap.Logger, db *gorm.DB, client *slack.Client) Service {
+<<<<<<< HEAD
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
 	if len(clientID) == 0 {
+=======
+	githubClientID := os.Getenv("GITHUB_CLIENT_ID")
+	if len(githubClientID) == 0 {
+>>>>>>> 6b28f21 (feat: add Github register service (#12))
 		logger.Fatal("GITHUB_CLIENT_ID is not set")
 	}
 
 	return &slackSvc{
+<<<<<<< HEAD
 		ClientID: clientID,
 		logger:   logger,
 		db:       db,
 		client:   client,
+=======
+		githubClientID: githubClientID,
+		logger:         logger,
+		db:             db,
+		client:         client,
+>>>>>>> 6b28f21 (feat: add Github register service (#12))
 	}
 }
 
@@ -60,7 +82,11 @@ func (s *slackSvc) Profile() error {
 	return nil
 }
 
+<<<<<<< HEAD
 func (s *slackSvc) Register(userID, channel string) error {
+=======
+func (s *slackSvc) Register(userID string) error {
+>>>>>>> 6b28f21 (feat: add Github register service (#12))
 	slackProfile, err := s.client.GetUserProfile(&slack.GetUserProfileParameters{
 		UserID: userID,
 	})
@@ -69,18 +95,48 @@ func (s *slackSvc) Register(userID, channel string) error {
 		return err
 	}
 
+<<<<<<< HEAD
 	user := model.User{}
 	res := s.db.Joins(`join authentication on "authentication"."id" = "user"."authentication_id"`).
 		Where(`"user"."id" = ? and "authentication"."status" = ?`, userID, model.AuthenticationSuccessful).
 		Find(&user)
 	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
+=======
+	user := model.User{
+		ID:            userID,
+		FirstName:     slackProfile.FirstName,
+		LastName:      slackProfile.LastName,
+		RealName:      slackProfile.RealName,
+		DisplayName:   slackProfile.DisplayName,
+		ImageOriginal: slackProfile.Image48,
+		SlackEmail:    slackProfile.Email,
+	}
+	if err := s.db.
+		Where(`"user"."id" = ?`, userID).
+		FirstOrCreate(&user).Error; err != nil && err != gorm.ErrRecordNotFound {
+>>>>>>> 6b28f21 (feat: add Github register service (#12))
 		s.logger.Error("failed to get user from db", zap.Error(err))
 		return err
 	}
 
+<<<<<<< HEAD
 	// User is already exists
 	if res.RowsAffected > 0 {
 		if _, _, _, err := s.client.SendMessage(channel, slack.MsgOptionText(
+=======
+	channel, _, _, err := s.client.OpenConversation(&slack.OpenConversationParameters{
+		Users:    []string{userID},
+		ReturnIM: true,
+	})
+	if err != nil {
+		s.logger.Error("open direct message failed", zap.Error(err))
+		return err
+	}
+
+	// User is already exists
+	if len(user.GithubUsername) > 0 {
+		if _, _, _, err := s.client.SendMessage(channel.ID, slack.MsgOptionText(
+>>>>>>> 6b28f21 (feat: add Github register service (#12))
 			"*Account registered*\nWelcome to WeXu, your account has been registered!",
 			true,
 		)); err != nil {
@@ -91,6 +147,7 @@ func (s *slackSvc) Register(userID, channel string) error {
 		return nil
 	}
 
+<<<<<<< HEAD
 	state := uuid.NewString()
 	link := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s&scope=user", s.ClientID, state)
 	text := fmt.Sprintf("*Github register*\nWelcome to WeXu, please register your account\n *<%s|Register>*", link)
@@ -118,6 +175,15 @@ func (s *slackSvc) Register(userID, channel string) error {
 		},
 	}).Error; err != nil {
 		s.logger.Error("create user failed", zap.Error(err))
+=======
+	link := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s&scope=user", s.githubClientID, userID)
+	text := fmt.Sprintf("*Github register*\nWelcome to WeXu, please register your account\n *<%s|Register WeXu account with Github>*", link)
+	blockText := slack.NewTextBlockObject("mrkdwn", text, false, true)
+	section := slack.NewSectionBlock(blockText, nil, nil)
+
+	if _, _, _, err := s.client.SendMessage(channel.ID, slack.MsgOptionBlocks(section)); err != nil {
+		s.logger.Error("send message failed", zap.Error(err))
+>>>>>>> 6b28f21 (feat: add Github register service (#12))
 		return err
 	}
 

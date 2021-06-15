@@ -37,6 +37,8 @@ Slack Bot: We need a slack bot to subscribe events / run commands on channels. Y
     - users.profile:read
     - users:read
     - users:read.email
+    - im:write
+    - im:read
 
 4. In `Event Subscriptions`:
     4.1 Fill `Request URL` that should be https://<ngrok_public_URL>/slack/events 
