@@ -10,7 +10,6 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/webuild-community/core/model"
-	"github.com/webuild-community/core/service/user"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -20,11 +19,10 @@ type slackSvc struct {
 	logger         *zap.Logger
 	db             *gorm.DB
 	client         *slack.Client
-	userSvc        user.Service
 }
 
 // NewSlackService --
-func NewSlackService(logger *zap.Logger, db *gorm.DB, client *slack.Client, userSvc user.Service) Service {
+func NewSlackService(logger *zap.Logger, db *gorm.DB, client *slack.Client) Service {
 	githubClientID := os.Getenv("GITHUB_CLIENT_ID")
 	if len(githubClientID) == 0 {
 		logger.Fatal("GITHUB_CLIENT_ID is not set")
@@ -34,7 +32,6 @@ func NewSlackService(logger *zap.Logger, db *gorm.DB, client *slack.Client, user
 		logger:         logger,
 		db:             db,
 		client:         client,
-		userSvc:        userSvc,
 	}
 }
 
@@ -57,7 +54,8 @@ func (s *slackSvc) Verify(header http.Header, body []byte) (interface{}, error) 
 }
 
 func (s *slackSvc) Profile(channelID, userID string) error {
-	user, err := s.userSvc.Find(userID)
+    var user model.User
+    err := s.db.First(&user, "id = ?", userID).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			s.client.PostMessage(channelID, slack.MsgOptionText("Please type `$register` command first", false))

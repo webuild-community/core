@@ -49,7 +49,7 @@ func (h *CommandHandler) commands(c echo.Context) error {
 			return c.NoContent(http.StatusNotFound)
 		}
 		h.logger.Error("cannot find user", zap.Error(err), zap.String("user_id", s.UserID))
-		return c.NoContent(http.StatusNotFound)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	switch s.Command {
