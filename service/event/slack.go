@@ -54,8 +54,8 @@ func (s *slackSvc) Verify(header http.Header, body []byte) (interface{}, error) 
 }
 
 func (s *slackSvc) Profile(channelID, userID string) error {
-    var user model.User
-    err := s.db.First(&user, "id = ?", userID).Error
+	var user model.User
+	err := s.db.First(&user, "id = ?", userID).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			s.client.PostMessage(channelID, slack.MsgOptionText("Please type `$register` command first", false))
