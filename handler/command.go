@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/labstack/echo"
@@ -43,7 +44,7 @@ func (h *CommandHandler) commands(c echo.Context) error {
 
 	user, err := h.userSvc.Find(s.UserID)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			h.logger.Error("User does not exist", zap.Error(err), zap.String("user_id", s.UserID))
 			return c.NoContent(http.StatusNotFound)
 		}
