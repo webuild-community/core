@@ -158,6 +158,7 @@ func main() {
 
 	handler.NewEventHandler(e, logger, q, eventSvc, userSvc)
 	handler.NewCommandHandler(e, logger, q, commandSvc, userSvc)
+	handler.NewInteractiveHandler(e, logger, q, userSvc, itemSvc)
 	handler.NewAuthorizeHandler(e, logger, db, slackClient)
 
 	e.Logger.Fatal(e.Start(":8080"))

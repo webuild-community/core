@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/labstack/echo"
@@ -9,6 +10,7 @@ import (
 	"github.com/webuild-community/core/service/queue"
 	"github.com/webuild-community/core/service/user"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type CommandHandler struct {
@@ -42,8 +44,12 @@ func (h *CommandHandler) commands(c echo.Context) error {
 
 	user, err := h.userSvc.Find(s.UserID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			h.logger.Error("User does not exist", zap.Error(err), zap.String("user_id", s.UserID))
+			return c.NoContent(http.StatusNotFound)
+		}
 		h.logger.Error("cannot find user", zap.Error(err), zap.String("user_id", s.UserID))
-		return c.NoContent(http.StatusNotFound)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	switch s.Command {
