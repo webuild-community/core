@@ -79,7 +79,7 @@ func (h *EventHandler) events(c echo.Context) error {
 
 			switch ev.Text {
 			case "$profile":
-				if err := h.eventSvc.Profile(); err != nil {
+				if err := h.eventSvc.Profile(ev.Channel, ev.User); err != nil {
 					h.logger.Error("cannot process $profile event", zap.Error(err))
 				}
 				return nil

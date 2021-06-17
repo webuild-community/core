@@ -2,6 +2,7 @@ package event
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -26,7 +27,6 @@ func NewSlackService(logger *zap.Logger, db *gorm.DB, client *slack.Client) Serv
 	if len(githubClientID) == 0 {
 		logger.Fatal("GITHUB_CLIENT_ID is not set")
 	}
-
 	return &slackSvc{
 		githubClientID: githubClientID,
 		logger:         logger,
@@ -53,9 +53,20 @@ func (s *slackSvc) Verify(header http.Header, body []byte) (interface{}, error) 
 	return slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
 }
 
-func (s *slackSvc) Profile() error {
-	s.logger.Info("handling profile")
-	return nil
+func (s *slackSvc) Profile(channelID, userID string) error {
+	var user model.User
+	err := s.db.First(&user, "id = ?", userID).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			s.client.PostMessage(channelID, slack.MsgOptionText("Please type `$register` command first", false))
+			return nil
+		}
+		s.client.PostMessage(channelID, slack.MsgOptionText("Please try again later", false))
+		return err
+	}
+	payload := fmt.Sprintf("Exp: `%d`, level: %d", user.Exp, user.Level)
+	_, _, err = s.client.PostMessage(channelID, slack.MsgOptionText(payload, false))
+	return err
 }
 
 func (s *slackSvc) Register(userID string) error {
