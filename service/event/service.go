@@ -8,7 +8,7 @@ type Service interface {
 	Verify(header http.Header, body []byte) (interface{}, error)
 	Profile(channelID, userID string) error
 	Register(userID string) error
-	Top() error
+	Top(channelID string) error
 	Drop() error
 	Redeem() error
 }

@@ -129,9 +129,50 @@ func (s *slackSvc) Register(userID string) error {
 	return nil
 }
 
-func (s *slackSvc) Top() error {
-	s.logger.Info("handling top")
+func (s *slackSvc) Top(channelID string) error {
+	users := make([]model.User, 0)
+	err := s.db.Model(model.User{}).Where("level > ?", 1).Order("level DESC").Limit(10).Find(&users).Error
+	if err != nil {
+		return err
+	}
+
+	blocks := buildBlockUserTopMessage(users)
+	if len(blocks) == 0 {
+		if _, _, _, err := s.client.SendMessage(channelID, slack.MsgOptionText("No users reached the top", false)); err != nil {
+			s.logger.Error("Send message failed", zap.Error(err))
+			return err
+		}
+	}
+	if _, _, _, err = s.client.SendMessage(channelID, slack.MsgOptionBlocks(blocks...)); err != nil {
+		s.logger.Error("Send message failed", zap.Error(err))
+		return err
+	}
+
 	return nil
+}
+
+func buildBlockUserTopMessage(users []model.User) []slack.Block {
+	divider := slack.NewDividerBlock()
+	blocks := make([]slack.Block, 0)
+
+	header := slack.NewSectionBlock(slack.NewTextBlockObject("mrkdwn", "*Top Users*", false, false), nil, nil)
+	blocks = append(blocks, header)
+	blocks = append(blocks, divider)
+
+	for index, user := range users {
+		imageAccessory := slack.NewAccessory(slack.NewImageBlockElement(user.ImageOriginal, user.GithubUsername))
+		userInfoBlock := slack.NewTextBlockObject("mrkdwn", buildUserInfoMessage(user), false, false)
+		section := slack.NewSectionBlock(userInfoBlock, nil, imageAccessory)
+		blocks = append(blocks, section)
+		if index != len(users)-1 {
+			blocks = append(blocks, divider)
+		}
+	}
+	return blocks
+}
+
+func buildUserInfoMessage(user model.User) string {
+	return fmt.Sprintf("*User*: %s\n*Level*: %d\n*Balance*: %0.1f", user.GithubUsername, user.Level, user.Balance)
 }
 
 func (s *slackSvc) Drop() error {
