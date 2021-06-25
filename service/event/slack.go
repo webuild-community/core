@@ -135,14 +135,14 @@ func (s *slackSvc) Top(channelID string) error {
 	if err != nil {
 		return err
 	}
-
-	blocks := buildBlockUserTopMessage(users)
-	if len(blocks) == 0 {
+	if len(users) == 0 {
 		if _, _, _, err := s.client.SendMessage(channelID, slack.MsgOptionText("No users reached the top", false)); err != nil {
 			s.logger.Error("Send message failed", zap.Error(err))
 			return err
 		}
 	}
+
+	blocks := buildBlockUserTopMessage(users)
 	if _, _, _, err = s.client.SendMessage(channelID, slack.MsgOptionBlocks(blocks...)); err != nil {
 		s.logger.Error("Send message failed", zap.Error(err))
 		return err
