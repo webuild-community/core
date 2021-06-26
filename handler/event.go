@@ -91,7 +91,7 @@ func (h *EventHandler) events(c echo.Context) error {
 				return nil
 
 			case "$top":
-				if err := h.eventSvc.Top(); err != nil {
+				if err := h.eventSvc.Top(ev.Channel); err != nil {
 					h.logger.Error("cannot process $top event", zap.Error(err))
 				}
 				return nil
