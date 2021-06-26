@@ -131,7 +131,7 @@ func (s *slackSvc) Register(userID string) error {
 
 func (s *slackSvc) Top(channelID string) error {
 	users := make([]model.User, 0)
-	err := s.db.Model(model.User{}).Where("level > ?", 1).Order("level DESC").Limit(10).Find(&users).Error
+	err := s.db.Model(model.User{}).Order("exp DESC").Limit(10).Find(&users).Error
 	if err != nil {
 		return err
 	}
