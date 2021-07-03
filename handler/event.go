@@ -68,7 +68,7 @@ func (h *EventHandler) events(c echo.Context) error {
 		exp := 1
 
 		switch ev := innerEvent.Data.(type) {
-		case *slackevents.AppMentionEvent:
+		// case *slackevents.AppMentionEvent:
 		// 	h.slackClient.PostMessage(ev.Channel, slack.MsgOptionText("Yes, hello.", false))
 
 		case *slackevents.MessageEvent:
@@ -82,31 +82,25 @@ func (h *EventHandler) events(c echo.Context) error {
 				if err := h.eventSvc.Profile(ev.Channel, ev.User); err != nil {
 					h.logger.Error("cannot process $profile event", zap.Error(err))
 				}
-				return nil
+				return c.NoContent(http.StatusOK)
 
 			case "$register":
 				if err := h.eventSvc.Register(ev.User); err != nil {
 					h.logger.Error("cannot process $register event", zap.Error(err))
 				}
-				return nil
+				return c.NoContent(http.StatusOK)
 
 			case "$top":
 				if err := h.eventSvc.Top(ev.Channel); err != nil {
 					h.logger.Error("cannot process $top event", zap.Error(err))
 				}
-				return nil
+				return c.NoContent(http.StatusOK)
 
 			case "$drop":
-				if err := h.eventSvc.Drop(); err != nil {
+				if err := h.eventSvc.Drop(ev.User); err != nil {
 					h.logger.Error("cannot process $drop event", zap.Error(err))
 				}
-				return nil
-
-			case "$redeem":
-				if err := h.eventSvc.Redeem(); err != nil {
-					h.logger.Error("cannot process $redeem event", zap.Error(err))
-				}
-				return nil
+				return c.NoContent(http.StatusOK)
 
 			}
 
@@ -114,7 +108,9 @@ func (h *EventHandler) events(c echo.Context) error {
 				exp++
 			}
 
-			h.queueSvc.Add(&model.User{ID: ev.User, Exp: int64(exp), SlackChannel: ev.Channel, CreatedAt: time.Now()})
+			if err := h.queueSvc.Add(&model.User{ID: ev.User, Exp: int64(exp), SlackChannel: ev.Channel, CreatedAt: time.Now()}); err != nil {
+				h.logger.Error("cannot add MessageEvent to queue", zap.Error(err))
+			}
 
 		case *slackevents.ReactionAddedEvent:
 			if ev.ItemUser == ev.User {
@@ -122,8 +118,12 @@ func (h *EventHandler) events(c echo.Context) error {
 			}
 			h.logger.Info("received event", zap.String("user_id", ev.User), zap.String("event", "ReactionAddedEvent"))
 
-			h.queueSvc.Add(&model.User{ID: ev.ItemUser, Exp: int64(exp), CreatedAt: time.Now()})
-			h.queueSvc.Add(&model.User{ID: ev.User, Exp: int64(exp), CreatedAt: time.Now()})
+			if err := h.queueSvc.Add(&model.User{ID: ev.ItemUser, Exp: int64(exp), CreatedAt: time.Now()}); err != nil {
+				h.logger.Error("cannot add ReactionAddedEvent to queue", zap.Error(err))
+			}
+			if err := h.queueSvc.Add(&model.User{ID: ev.User, Exp: int64(exp), CreatedAt: time.Now()}); err != nil {
+				h.logger.Error("cannot add ReactionAddedEvent to queue", zap.Error(err))
+			}
 
 		case *slackevents.ReactionRemovedEvent:
 			if ev.ItemUser == ev.User {
@@ -131,12 +131,16 @@ func (h *EventHandler) events(c echo.Context) error {
 			}
 			h.logger.Info("received event", zap.String("user_id", ev.User), zap.String("event", "ReactionRemovedEvent"))
 
-			h.queueSvc.Add(&model.User{ID: ev.ItemUser, Exp: -1, CreatedAt: time.Now()})
-			h.queueSvc.Add(&model.User{ID: ev.User, Exp: -1, CreatedAt: time.Now()})
+			if err := h.queueSvc.Add(&model.User{ID: ev.ItemUser, Exp: -1, CreatedAt: time.Now()}); err != nil {
+				h.logger.Error("cannot add ReactionRemovedEvent to queue", zap.Error(err))
+			}
+			if err := h.queueSvc.Add(&model.User{ID: ev.User, Exp: -1, CreatedAt: time.Now()}); err != nil {
+				h.logger.Error("cannot add ReactionRemovedEvent to queue", zap.Error(err))
+			}
 
 		}
 
 	}
 
-	return nil
+	return c.NoContent(http.StatusOK)
 }
