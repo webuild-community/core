@@ -1,12 +1,14 @@
 package event
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
 
+	"github.com/dstotijn/go-notion"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/webuild-community/core/model"
@@ -18,11 +20,12 @@ type slackSvc struct {
 	githubClientID string
 	logger         *zap.Logger
 	db             *gorm.DB
-	client         *slack.Client
+	slackClient    *slack.Client
+	notionClient   *notion.Client
 }
 
 // NewSlackService --
-func NewSlackService(logger *zap.Logger, db *gorm.DB, client *slack.Client) Service {
+func NewSlackService(logger *zap.Logger, db *gorm.DB, slackClient *slack.Client, notionClient *notion.Client) Service {
 	githubClientID := os.Getenv("GITHUB_CLIENT_ID")
 	if len(githubClientID) == 0 {
 		logger.Fatal("GITHUB_CLIENT_ID is not set")
@@ -31,7 +34,8 @@ func NewSlackService(logger *zap.Logger, db *gorm.DB, client *slack.Client) Serv
 		githubClientID: githubClientID,
 		logger:         logger,
 		db:             db,
-		client:         client,
+		slackClient:    slackClient,
+		notionClient:   notionClient,
 	}
 }
 
@@ -55,22 +59,41 @@ func (s *slackSvc) Verify(header http.Header, body []byte) (interface{}, error) 
 
 func (s *slackSvc) Profile(channelID, userID string) error {
 	var user model.User
+
 	err := s.db.First(&user, "id = ?", userID).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			s.client.PostMessage(channelID, slack.MsgOptionText("Please type `$register` command first", false))
+			s.slackClient.PostMessage(channelID, slack.MsgOptionText("Please type `$register` command first", false))
 			return nil
 		}
-		s.client.PostMessage(channelID, slack.MsgOptionText("Please try again later", false))
+		s.slackClient.PostMessage(channelID, slack.MsgOptionText("Please try again later", false))
 		return err
 	}
+
 	payload := fmt.Sprintf("Exp: `%d`, level: %d", user.Exp, user.Level)
-	_, _, err = s.client.PostMessage(channelID, slack.MsgOptionText(payload, false))
+	_, _, err = s.slackClient.PostMessage(channelID, slack.MsgOptionText(payload, false))
 	return err
 }
 
+func (s *slackSvc) dmUser(userID string, options ...slack.MsgOption) error {
+	channel, _, _, err := s.slackClient.OpenConversation(&slack.OpenConversationParameters{
+		Users:    []string{userID},
+		ReturnIM: true,
+	})
+	if err != nil {
+		s.logger.Error("open direct message failed", zap.Error(err))
+		return err
+	}
+
+	if _, _, _, err := s.slackClient.SendMessage(channel.ID, options...); err != nil {
+		s.logger.Error("send message failed", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
 func (s *slackSvc) Register(userID string) error {
-	slackProfile, err := s.client.GetUserProfile(&slack.GetUserProfileParameters{
+	slackProfile, err := s.slackClient.GetUserProfile(&slack.GetUserProfileParameters{
 		UserID: userID,
 	})
 	if err != nil {
@@ -94,26 +117,12 @@ func (s *slackSvc) Register(userID string) error {
 		return err
 	}
 
-	channel, _, _, err := s.client.OpenConversation(&slack.OpenConversationParameters{
-		Users:    []string{userID},
-		ReturnIM: true,
-	})
-	if err != nil {
-		s.logger.Error("open direct message failed", zap.Error(err))
-		return err
-	}
-
 	// User is already exists
-	if len(user.GithubUsername) > 0 {
-		if _, _, _, err := s.client.SendMessage(channel.ID, slack.MsgOptionText(
+	if user.GithubUsername != "" {
+		return s.dmUser(userID, slack.MsgOptionText(
 			"*Account registered*\nWelcome to WeXu, your account has been registered!",
 			true,
-		)); err != nil {
-			s.logger.Error("send message failed", zap.Error(err))
-			return err
-		}
-
-		return nil
+		))
 	}
 
 	link := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s&scope=user", s.githubClientID, userID)
@@ -121,12 +130,7 @@ func (s *slackSvc) Register(userID string) error {
 	blockText := slack.NewTextBlockObject("mrkdwn", text, false, true)
 	section := slack.NewSectionBlock(blockText, nil, nil)
 
-	if _, _, _, err := s.client.SendMessage(channel.ID, slack.MsgOptionBlocks(section)); err != nil {
-		s.logger.Error("send message failed", zap.Error(err))
-		return err
-	}
-
-	return nil
+	return s.dmUser(userID, slack.MsgOptionBlocks(section))
 }
 
 func (s *slackSvc) Top(channelID string) error {
@@ -136,13 +140,13 @@ func (s *slackSvc) Top(channelID string) error {
 		return err
 	}
 	if len(users) == 0 {
-		if _, _, _, err := s.client.SendMessage(channelID, slack.MsgOptionText("No users reached the top", false)); err != nil {
+		if err := s.dmUser(channelID, slack.MsgOptionText("No users reached the top", false)); err != nil {
 			return err
 		}
 	}
 
 	blocks := buildBlockUserTopMessage(users)
-	if _, _, _, err = s.client.SendMessage(channelID, slack.MsgOptionBlocks(blocks...)); err != nil {
+	if err := s.dmUser(channelID, slack.MsgOptionBlocks(blocks...)); err != nil {
 		return err
 	}
 
@@ -173,12 +177,56 @@ func buildUserInfoMessage(user model.User) string {
 	return fmt.Sprintf("*User*: %s\n*Level*: %d\n*Balance*: %0.1f", user.GithubUsername, user.Level, user.Balance)
 }
 
-func (s *slackSvc) Drop() error {
-	s.logger.Info("handling drop")
-	return nil
-}
+func (s *slackSvc) Drop(userID string) error {
+	isExpired := false
+	items, err := s.notionClient.QueryDatabase(context.Background(), os.Getenv("NOTION_DATABASE_ID"), &notion.DatabaseQuery{Filter: &notion.DatabaseQueryFilter{
+		Property: "Expired",
+		Checkbox: &notion.CheckboxDatabaseQueryFilter{Equals: &isExpired},
+	}})
+	if err != nil {
+		s.logger.Error("cannot fetch items", zap.Error(err))
+	}
 
-func (s *slackSvc) Redeem() error {
-	s.logger.Info("handling redeem")
-	return nil
+	pretext := fmt.Sprintf("*Drop Items*\n")
+	blockPretext := slack.NewTextBlockObject("mrkdwn", pretext, false, true)
+	sectionBlockPretext := slack.NewSectionBlock(blockPretext, nil, nil)
+
+	attachment := slack.Attachment{
+		Color: "#3AA3E3",
+	}
+
+	blockset := []slack.Block{}
+	for _, v := range items.Results {
+		properties, ok := v.Properties.(notion.DatabasePageProperties)
+		if !ok {
+			continue
+		}
+
+		if len(properties["Name"].Title) == 0 ||
+			properties["Redeemed"].Number == nil ||
+			properties["Quantity"].Number == nil ||
+			properties["Price"].Number == nil {
+			continue
+		}
+
+		if *properties["Redeemed"].Number >= *properties["Quantity"].Number {
+			continue
+		}
+
+		text := fmt.Sprintf("*%v* (%v/%v)\n", properties["Name"].Title[0].PlainText, *properties["Redeemed"].Number, *properties["Quantity"].Number)
+		if len(properties["Description"].Title) > 0 {
+			text += fmt.Sprintf("Description: %v\n", properties["Description"].Title[0].PlainText)
+		}
+		text += fmt.Sprintf("%v RDF", *properties["Price"].Number)
+
+		redeemBtnTxt := slack.NewTextBlockObject("plain_text", "Redeem", false, false)
+		redeemButton := slack.NewButtonBlockElement("", v.ID, redeemBtnTxt)
+		redeemButton.Style = "primary"
+		block := slack.NewTextBlockObject("mrkdwn", text, false, true)
+		sectionBlock := slack.NewSectionBlock(block, nil, slack.NewAccessory(redeemButton))
+		blockset = append(blockset, sectionBlock)
+	}
+	attachment.Blocks = slack.Blocks{BlockSet: blockset}
+
+	return s.dmUser(userID, slack.MsgOptionBlocks(sectionBlockPretext), slack.MsgOptionAttachments(attachment))
 }

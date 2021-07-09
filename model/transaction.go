@@ -7,7 +7,7 @@ import (
 type Transaction struct {
 	gorm.Model
 	UserID string  `gorm:"not null" json:"user_id"`
-	ItemID uint    `gorm:"not null" json:"item_id"`
+	ItemID string  `gorm:"not null" json:"item_id"`
 	Price  float64 `gorm:"not null" json:"quantity"`
 }
 

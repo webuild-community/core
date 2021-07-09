@@ -8,25 +8,22 @@ import (
 	"github.com/dstotijn/go-notion"
 	"github.com/webuild-community/core/model"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
-type pg struct {
+type notionSvc struct {
 	logger       *zap.Logger
 	notionClient *notion.Client
-	db           *gorm.DB
 }
 
-// NewPGService --
-func NewPGService(logger *zap.Logger, notionClient *notion.Client, db *gorm.DB) Service {
-	return &pg{
+// NewNotionService --
+func NewNotionService(logger *zap.Logger, notionClient *notion.Client) Service {
+	return &notionSvc{
 		logger:       logger,
 		notionClient: notionClient,
-		db:           db,
 	}
 }
 
-func (s *pg) Find(id string) (*model.Item, error) {
+func (s *notionSvc) Find(id string) (*model.Item, error) {
 	isExpired := false
 	items, err := s.notionClient.QueryDatabase(context.Background(), os.Getenv("NOTION_DATABASE_ID"), &notion.DatabaseQuery{Filter: &notion.DatabaseQueryFilter{
 		Property: "Expired",
@@ -59,7 +56,7 @@ func (s *pg) Find(id string) (*model.Item, error) {
 	return nil, errors.New("item not found")
 }
 
-func (s *pg) Redeem(itemID, userID string) error {
+func (s *notionSvc) Redeem(itemID, userID string) error {
 	s.logger.Info("handling Redeem", zap.String("item_id", itemID))
 
 	item, err := s.Find(itemID)
@@ -67,17 +64,15 @@ func (s *pg) Redeem(itemID, userID string) error {
 		return err
 	}
 
-	txs := []model.Transaction{}
-	if err := s.db.Find(&txs, "item_id = ?", itemID).Error; err != nil {
-		return err
-	}
-	if len(txs) == int(item.Quantity) {
-		return errors.New("out of stock")
-	}
+	redeemed := float64(item.Redeemed + 1)
+	s.notionClient.UpdatePageProps(context.Background(),
+		itemID,
+		notion.UpdatePageParams{DatabasePageProperties: &notion.DatabasePageProperties{
+			"Redeemed": notion.DatabasePageProperty{
+				Type:   "number",
+				Number: &redeemed,
+			}}},
+	)
 
-	return s.db.Create(&model.Transaction{
-		ItemID: itemID,
-		UserID: userID,
-		Price:  item.Price,
-	}).Error
+	return nil
 }

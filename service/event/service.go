@@ -9,6 +9,5 @@ type Service interface {
 	Profile(channelID, userID string) error
 	Register(userID string) error
 	Top(channelID string) error
-	Drop() error
-	Redeem() error
+	Drop(userID string) error
 }
