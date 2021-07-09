@@ -134,19 +134,19 @@ func (s *slackSvc) Register(userID string) error {
 }
 
 func (s *slackSvc) Top(channelID string) error {
-	users := make([]model.User, 0)
+	users := []model.User{}
 	err := s.db.Model(model.User{}).Order("exp DESC").Limit(10).Find(&users).Error
 	if err != nil {
 		return err
 	}
 	if len(users) == 0 {
-		if err := s.dmUser(channelID, slack.MsgOptionText("No users reached the top", false)); err != nil {
+		if _, _, _, err := s.slackClient.SendMessage(channelID, slack.MsgOptionText("No users reached the top", false)); err != nil {
 			return err
 		}
 	}
 
 	blocks := buildBlockUserTopMessage(users)
-	if err := s.dmUser(channelID, slack.MsgOptionBlocks(blocks...)); err != nil {
+	if _, _, _, err := s.slackClient.SendMessage(channelID, slack.MsgOptionBlocks(blocks...)); err != nil {
 		return err
 	}
 
@@ -162,19 +162,25 @@ func buildBlockUserTopMessage(users []model.User) []slack.Block {
 	blocks = append(blocks, divider)
 
 	for index, user := range users {
-		imageAccessory := slack.NewAccessory(slack.NewImageBlockElement(user.ImageOriginal, user.GithubUsername))
-		userInfoBlock := slack.NewTextBlockObject("mrkdwn", buildUserInfoMessage(user), false, false)
-		section := slack.NewSectionBlock(userInfoBlock, nil, imageAccessory)
-		blocks = append(blocks, section)
+		if user.DisplayName == "" {
+			user.DisplayName = "Unknown"
+		}
+		if user.ImageOriginal == "" {
+			user.ImageOriginal = "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png"
+		}
+
+		userTxt := fmt.Sprintf("%s - %d lvl", user.DisplayName, user.Level)
+		userBlock := slack.NewTextBlockObject("mrkdwn", userTxt, false, false)
+		imageBlock := slack.NewImageBlockElement(user.ImageOriginal, user.DisplayName)
+		sectionBlock := slack.NewSectionBlock(userBlock, nil, slack.NewAccessory(imageBlock))
+
+		blocks = append(blocks, sectionBlock)
 		if index != len(users)-1 {
 			blocks = append(blocks, divider)
 		}
 	}
-	return blocks
-}
 
-func buildUserInfoMessage(user model.User) string {
-	return fmt.Sprintf("*User*: %s\n*Level*: %d\n*Balance*: %0.1f", user.GithubUsername, user.Level, user.Balance)
+	return blocks
 }
 
 func (s *slackSvc) Drop(userID string) error {

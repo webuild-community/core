@@ -81,6 +81,9 @@ func main() {
 						logger.Error("cannot get slack user info", zap.Error(err), zap.String("user_id", u.ID))
 						continue
 					}
+					if sUser.IsBot {
+						continue
+					}
 					_, _, err = userSvc.Update(u.ID, map[string]interface{}{
 						"exp":            u.Exp,
 						"first_name":     sUser.Profile.FirstName,
