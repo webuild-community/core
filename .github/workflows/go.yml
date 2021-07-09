@@ -3,15 +3,14 @@ name: Go CI
 on:
   push:
     branches:
-      - main
-      - develop
-      - cicd
       - feat/*
       - fix/*
       - hotfix/*
+      - chore/*
   pull_request:
     branches:
       - develop
+      - main
 
 jobs:
   test:
