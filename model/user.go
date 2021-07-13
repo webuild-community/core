@@ -28,8 +28,8 @@ type User struct {
 	// only be used for temporary storing data
 	SlackChannel string `json:"slack_channel"`
 
-	AuthenticationID uint           `json:"-"`
-	Authentication   Authentication `json:"-" gorm:"foreignKey:AuthenticationID"`
+	// AuthenticationID uint           `json:"-"`
+	// Authentication   Authentication `json:"-" gorm:"foreignKey:AuthenticationID"`
 
 	CreatedAt time.Time  `gorm:"default:now()" json:"created_at"`
 	UpdatedAt time.Time  `gorm:"default:now()" json:"updated_at"`
