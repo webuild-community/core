@@ -1,14 +1,8 @@
 # github.com/dgrijalva/jwt-go v3.2.0+incompatible
 github.com/dgrijalva/jwt-go
-<<<<<<< HEAD
-# github.com/google/uuid v1.2.0
-## explicit
-github.com/google/uuid
-=======
 # github.com/dstotijn/go-notion v0.3.3
 ## explicit
 github.com/dstotijn/go-notion
->>>>>>> 347b5ef (feat: add drop, redeem (#14))
 # github.com/gorilla/websocket v1.4.2
 github.com/gorilla/websocket
 # github.com/jackc/chunkreader/v2 v2.0.1
