@@ -3,8 +3,9 @@ module github.com/webuild-community/core
 go 1.16
 
 require (
-	github.com/google/uuid v1.2.0
+	github.com/dstotijn/go-notion v0.3.3
 	github.com/joho/godotenv v1.3.0
+	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect

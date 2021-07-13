@@ -1,8 +1,8 @@
 # github.com/dgrijalva/jwt-go v3.2.0+incompatible
 github.com/dgrijalva/jwt-go
-# github.com/google/uuid v1.2.0
+# github.com/dstotijn/go-notion v0.3.3
 ## explicit
-github.com/google/uuid
+github.com/dstotijn/go-notion
 # github.com/gorilla/websocket v1.4.2
 github.com/gorilla/websocket
 # github.com/jackc/chunkreader/v2 v2.0.1
@@ -32,6 +32,9 @@ github.com/jinzhu/now
 # github.com/joho/godotenv v1.3.0
 ## explicit
 github.com/joho/godotenv
+# github.com/k0kubun/pp v3.0.1+incompatible
+## explicit
+github.com/k0kubun/pp
 # github.com/labstack/echo v3.3.10+incompatible
 ## explicit
 github.com/labstack/echo
